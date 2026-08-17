@@ -78,21 +78,39 @@ async function isRealPage(page) {
 }
 
 // Try to click the Turnstile "Confirme que é humano" checkbox.
+// Two strategies: (1) pierce the iframe and click the checkbox element directly,
+// (2) human-like mouse move + click at the checkbox's on-screen position.
 async function tryClickTurnstile(page, log) {
+  // Strategy 1: frameLocator into the challenge iframe.
   try {
-    const iframe = page.locator('iframe[src*="challenges.cloudflare.com"]').first();
-    if ((await iframe.count()) === 0) return false;
-    // The checkbox sits near the left-center of the widget iframe.
-    const box = await iframe.boundingBox();
-    if (box) {
-      const x = box.x + 30;
-      const y = box.y + box.height / 2;
-      log(`  clicking Turnstile checkbox at ~(${Math.round(x)}, ${Math.round(y)})`);
-      await page.mouse.click(x, y);
+    const fl = page.frameLocator('iframe[src*="challenges.cloudflare.com"]');
+    const cb = fl.locator('input[type="checkbox"], label, #challenge-stage, .cb-lb, .cb-c').first();
+    if (await cb.count().catch(() => 0)) {
+      await cb.click({ timeout: 4000 });
+      log('  clicked Turnstile via frameLocator');
       return true;
     }
   } catch (e) {
-    log('  turnstile click attempt failed:', e.message);
+    log('  frameLocator click failed:', e.message);
+  }
+  // Strategy 2: real mouse move + click at the widget checkbox position.
+  try {
+    const iframe = page.locator('iframe[src*="challenges.cloudflare.com"]').first();
+    if ((await iframe.count()) === 0) return false;
+    const box = await iframe.boundingBox();
+    if (box) {
+      const x = box.x + 32;
+      const y = box.y + box.height / 2;
+      // Move in human-like steps before clicking.
+      await page.mouse.move(x - 50, y - 25, { steps: 8 });
+      await page.mouse.move(x, y, { steps: 12 });
+      await page.waitForTimeout(350);
+      await page.mouse.click(x, y, { delay: 70 });
+      log(`  clicked Turnstile (mouse) at ~(${Math.round(x)}, ${Math.round(y)})`);
+      return true;
+    }
+  } catch (e) {
+    log('  mouse click attempt failed:', e.message);
   }
   return false;
 }
@@ -130,13 +148,12 @@ async function main() {
         break;
       }
       log(`  still on challenge screen (check ${i + 1}/18)...`);
-      // After ~15s of waiting, actively try clicking the Turnstile checkbox once.
-      if (i === 2 && !clickedOnce) {
-        clickedOnce = await tryClickTurnstile(page, log);
-      }
-      // Snapshot mid-wait so we can see what the runner sees at this moment.
-      if (i === 2) {
-        await page.screenshot({ path: path.join(OUT_DIR, 'mid-wait.png') }).catch(() => {});
+      // Retry clicking the Turnstile checkbox on several cycles (10s, 20s, 30s, 45s).
+      if ([2, 4, 6, 9].includes(i)) {
+        await page.screenshot({ path: path.join(OUT_DIR, `before-click-${i}.png`) }).catch(() => {});
+        clickedOnce = (await tryClickTurnstile(page, log)) || clickedOnce;
+        await page.waitForTimeout(1500);
+        await page.screenshot({ path: path.join(OUT_DIR, `after-click-${i}.png`) }).catch(() => {});
       }
     }
 
