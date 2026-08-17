@@ -1,0 +1,14 @@
+{
+  "name": "swim-rankings-scrape-test",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Test whether a free cloud runner can get past swimrankings' Cloudflare and download an Excel file.",
+  "scripts": {
+    "test:scrape": "node scrape-test.js"
+  },
+  "dependencies": {
+    "playwright": "^1.47.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
