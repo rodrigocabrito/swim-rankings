@@ -45,13 +45,56 @@ async function isCloudflareWall(page) {
   const title = (await page.title().catch(() => '')) || '';
   const body = (await page.evaluate(() => document.body?.innerText || '').catch(() => '')) || '';
   const hay = (title + ' ' + body).toLowerCase();
-  return (
+  const textMatch =
+    // English
     hay.includes('just a moment') ||
     hay.includes('checking your browser') ||
     hay.includes('verify you are human') ||
     hay.includes('cf-challenge') ||
-    hay.includes('enable javascript and cookies')
-  );
+    hay.includes('enable javascript and cookies') ||
+    // Portuguese (the variant we actually hit)
+    hay.includes('verificação de segurança') ||
+    hay.includes('confirme que é humano') ||
+    hay.includes('não é um bot') ||
+    hay.includes('ray id');
+  // Also treat the presence of a Turnstile iframe as "still walled".
+  const hasTurnstile = await page
+    .locator('iframe[src*="challenges.cloudflare.com"]')
+    .count()
+    .then((n) => n > 0)
+    .catch(() => false);
+  return textMatch || hasTurnstile;
+}
+
+// Positive signal that the REAL ranking page loaded (not the challenge).
+async function isRealPage(page) {
+  return page
+    .evaluate(() => {
+      const t = (document.body?.innerText || '').toLowerCase();
+      // The real rankingDetail page shows the club and ranking UI.
+      return t.includes('swimrankings') && (t.includes('ranking') || t.includes('clube'));
+    })
+    .catch(() => false);
+}
+
+// Try to click the Turnstile "Confirme que é humano" checkbox.
+async function tryClickTurnstile(page, log) {
+  try {
+    const iframe = page.locator('iframe[src*="challenges.cloudflare.com"]').first();
+    if ((await iframe.count()) === 0) return false;
+    // The checkbox sits near the left-center of the widget iframe.
+    const box = await iframe.boundingBox();
+    if (box) {
+      const x = box.x + 30;
+      const y = box.y + box.height / 2;
+      log(`  clicking Turnstile checkbox at ~(${Math.round(x)}, ${Math.round(y)})`);
+      await page.mouse.click(x, y);
+      return true;
+    }
+  } catch (e) {
+    log('  turnstile click attempt failed:', e.message);
+  }
+  return false;
 }
 
 async function main() {
@@ -77,14 +120,27 @@ async function main() {
     await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Give Cloudflare's challenge time to solve itself, then poll.
-    log('Waiting for a potential Cloudflare challenge to clear...');
-    for (let i = 0; i < 8; i++) {
-      await page.waitForTimeout(4000);
-      if (!(await isCloudflareWall(page))) break;
-      log(`  still on challenge screen (check ${i + 1}/8)...`);
+    // Turnstile can auto-solve after a few seconds; if not, we click the checkbox.
+    log('Waiting for Cloudflare challenge to clear (up to ~90s)...');
+    let clickedOnce = false;
+    for (let i = 0; i < 18; i++) {
+      await page.waitForTimeout(5000);
+      if ((await isRealPage(page)) && !(await isCloudflareWall(page))) {
+        log(`  challenge cleared on check ${i + 1}.`);
+        break;
+      }
+      log(`  still on challenge screen (check ${i + 1}/18)...`);
+      // After ~15s of waiting, actively try clicking the Turnstile checkbox once.
+      if (i === 2 && !clickedOnce) {
+        clickedOnce = await tryClickTurnstile(page, log);
+      }
+      // Snapshot mid-wait so we can see what the runner sees at this moment.
+      if (i === 2) {
+        await page.screenshot({ path: path.join(OUT_DIR, 'mid-wait.png') }).catch(() => {});
+      }
     }
 
-    const blocked = await isCloudflareWall(page);
+    const blocked = (await isCloudflareWall(page)) || !(await isRealPage(page));
     await page.screenshot({ path: path.join(OUT_DIR, 'page.png'), fullPage: true }).catch(() => {});
     fs.writeFileSync(path.join(OUT_DIR, 'page.html'), await page.content().catch(() => ''));
 
