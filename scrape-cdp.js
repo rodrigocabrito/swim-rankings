@@ -59,6 +59,18 @@ async function isRealPage(page) {
     .catch(() => false);
 }
 
+// Wait until the real page is loaded — gives you time to solve the checkbox in
+// Chrome if Cloudflare challenges (e.g. at the start, or if clearance expires
+// mid-run). Returns false only if it never clears within ~90s.
+async function ensureRealPage(page, label) {
+  for (let i = 0; i < 45; i++) {
+    if (await isRealPage(page)) return true;
+    if (i === 0) log(`   ⏳ Cloudflare — solve the checkbox in the Chrome window (waiting for ${label})...`);
+    await sleep(2000);
+  }
+  return false;
+}
+
 async function findAndDownload(page, saveAs) {
   const candidates = await page.evaluate(() => {
     const grab = (el) => ({
@@ -116,9 +128,8 @@ async function main() {
         log(`▶ ${label}  (clubId=${club.id})`);
         try {
           await page.goto(urlFor(club.id, g.v, course), { waitUntil: 'domcontentloaded', timeout: 60000 });
-          await sleep(2500);
-          if (!(await isRealPage(page))) {
-            log(`  ❌ Not on the real page (Cloudflare?) for ${label}. Solve the checkbox in Chrome and re-run.`);
+          if (!(await ensureRealPage(page, label))) {
+            log(`  ❌ Cloudflare not cleared for ${label} after waiting; skipping.`);
             await page.screenshot({ path: path.join(ART_DIR, `blocked-${label}.png`) }).catch(() => {});
             results.push({ label, status: 'BLOCKED', bytes: 0 });
             continue;
