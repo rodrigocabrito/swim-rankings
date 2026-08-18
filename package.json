@@ -1,16 +1,16 @@
 {
-  "name": "swim-rankings-scrape-test",
-  "version": "0.0.1",
+  "name": "swim-rankings",
+  "version": "1.0.0",
   "private": true,
-  "description": "Test whether a free cloud runner can get past swimrankings' Cloudflare and download an Excel file.",
+  "description": "Portuguese swim rankings pipeline: scrape swimrankings via a CDP-attached Chrome, parse to top-10-per-event, upload to Firestore. Website lives in web/.",
   "scripts": {
-    "test:scrape": "node scrape-test.js"
+    "scrape": "node scrape-cdp.js",
+    "parse": "node parse.js",
+    "upload": "node upload.js"
   },
   "dependencies": {
     "firebase-admin": "^12.7.0",
     "playwright": "^1.47.0",
-    "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
     "xlsx": "^0.18.5"
   }
 }
