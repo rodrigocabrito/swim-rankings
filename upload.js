@@ -33,8 +33,9 @@ const db = admin.firestore();
 const log = (...a) => console.log(...a);
 
 async function commitInChunks(docs) {
-  // Firestore batches cap at 500 writes.
-  const CHUNK = 400;
+  // Firestore batches cap at 500 writes, but these docs are large (~40-170KB each),
+  // so a big batch exceeds the commit deadline. Keep chunks small.
+  const CHUNK = 25;
   let written = 0;
   for (let i = 0; i < docs.length; i += CHUNK) {
     const batch = db.batch();

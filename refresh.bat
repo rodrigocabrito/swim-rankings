@@ -30,6 +30,14 @@ echo.
 echo   Then press any key here to start the refresh...
 pause >nul
 
+rem Start fresh: clear last run's downloads and parsed files so this pull is
+rem current. (If a run is interrupted by 502s, DON'T re-run this bat - instead run
+rem "node scrape-cdp.js" directly, which resumes and keeps what's already downloaded.)
+echo.
+echo Clearing previous downloads for a fresh pull...
+if exist "%~dp0downloads\*.xlsx" del /q "%~dp0downloads\*.xlsx"
+if exist "%~dp0parsed\*.json" del /q "%~dp0parsed\*.json"
+
 echo.
 echo [1/3] Downloading from swimrankings...
 call node scrape-cdp.js

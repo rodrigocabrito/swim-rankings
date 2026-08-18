@@ -71,6 +71,21 @@ async function ensureRealPage(page, label) {
   return false;
 }
 
+// Detect a swimrankings server error page (502/503/504) so we can back off
+// instead of hammering — the usual cause of a bulk run failing partway.
+async function isServerError(page) {
+  return page
+    .evaluate(() => {
+      const t = ((document.title || '') + ' ' + (document.body?.innerText || '')).toLowerCase();
+      return (
+        t.includes('502') || t.includes('bad gateway') ||
+        t.includes('503') || t.includes('service unavailable') ||
+        t.includes('504') || t.includes('gateway time-out')
+      );
+    })
+    .catch(() => false);
+}
+
 async function findAndDownload(page, saveAs) {
   const candidates = await page.evaluate(() => {
     const grab = (el) => ({
@@ -118,44 +133,72 @@ async function main() {
   log('Connected. Using existing Chrome session (should already be past Cloudflare).');
 
   const results = [];
-  let ok = 0;
+  let ok = 0, skipped = 0, serverStreak = 0;
+  const THROTTLE = Number(process.env.THROTTLE_MS || 4500); // gentler default pacing
   outer: for (const club of CLUBS) {
     for (const g of GENDERS) {
       for (const course of COURSES) {
         if (ok >= argLimit) break outer;
         const label = `${club.code}_${course}_${g.code}`;
         const saveAs = path.join(DL_DIR, `POR-${label}.xlsx`);
-        log(`▶ ${label}  (clubId=${club.id})`);
-        try {
-          await page.goto(urlFor(club.id, g.v, course), { waitUntil: 'domcontentloaded', timeout: 60000 });
-          if (!(await ensureRealPage(page, label))) {
-            log(`  ❌ Cloudflare not cleared for ${label} after waiting; skipping.`);
-            await page.screenshot({ path: path.join(ART_DIR, `blocked-${label}.png`) }).catch(() => {});
-            results.push({ label, status: 'BLOCKED', bytes: 0 });
-            continue;
-          }
-          const bytes = await findAndDownload(page, saveAs);
-          if (bytes > 0) {
-            log(`  ✅ downloaded ${label} (${bytes} bytes)`);
-            results.push({ label, status: 'OK', bytes });
-            ok++;
-          } else {
-            log(`  ⚠️  on real page but no download for ${label}`);
-            results.push({ label, status: 'NO_DOWNLOAD', bytes: 0 });
-          }
-        } catch (e) {
-          log(`  💥 ${label}: ${e.message.split('\n')[0]}`);
-          results.push({ label, status: 'ERROR', bytes: 0 });
+
+        // Resume: skip files already downloaded so a re-run only fetches what's
+        // missing. (For a fresh weekly pull, clear the downloads/ folder first.)
+        if (fs.existsSync(saveAs) && fs.statSync(saveAs).size >= 3000) {
+          skipped++;
+          results.push({ label, status: 'SKIP', bytes: fs.statSync(saveAs).size });
+          continue;
         }
-        await sleep(3000);
+
+        log(`▶ ${label}  (clubId=${club.id})`);
+        let status = 'ERROR', bytes = 0;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await page.goto(urlFor(club.id, g.v, course), { waitUntil: 'domcontentloaded', timeout: 60000 });
+            if (await isServerError(page)) {
+              serverStreak++;
+              const backoff = Math.min(30000 * serverStreak, 180000);
+              log(`  🛑 server error (502/503) — backing off ${Math.round(backoff / 1000)}s (attempt ${attempt})`);
+              status = 'SERVER_ERROR';
+              await sleep(backoff);
+              continue;
+            }
+            if (!(await ensureRealPage(page, label))) {
+              if (await isServerError(page)) { status = 'SERVER_ERROR'; serverStreak++; await sleep(30000); continue; }
+              status = 'BLOCKED';
+              await sleep(10000);
+              continue;
+            }
+            bytes = await findAndDownload(page, saveAs);
+            if (bytes > 0) { status = 'OK'; serverStreak = 0; break; }
+            status = 'NO_DOWNLOAD';
+            await sleep(8000);
+          } catch (e) {
+            log(`  💥 ${label}: ${e.message.split('\n')[0]}`);
+            status = 'ERROR';
+            await sleep(8000);
+          }
+        }
+        if (status === 'OK') { log(`  ✅ downloaded ${label} (${bytes} bytes)`); ok++; }
+        else log(`  ⚠️  ${label}: ${status} after retries`);
+        results.push({ label, status, bytes });
+
+        // If the server keeps failing, stop rather than risk a ban — re-run later
+        // and resume (finished files are skipped).
+        if (serverStreak >= 5) {
+          log('🛑 Repeated server errors — stopping. Re-run later; downloaded files will be skipped.');
+          break outer;
+        }
+        await sleep(THROTTLE + Math.floor(Math.random() * 1500));
       }
     }
   }
 
   fs.writeFileSync(path.join(ART_DIR, 'results.json'), JSON.stringify(results, null, 2));
   log('==== SUMMARY ====');
-  results.forEach((r) => log(`  ${r.status.padEnd(14)} ${r.label} ${r.bytes || ''}`));
-  log(`Downloaded ${ok}/${results.length} attempted.`);
+  const failed = results.filter((r) => !['OK', 'SKIP'].includes(r.status));
+  failed.forEach((r) => log(`  ${r.status.padEnd(14)} ${r.label}`));
+  log(`Downloaded ${ok}, skipped(existing) ${skipped}, failed ${failed.length}, of ${results.length} total.`);
   // Do NOT close the browser — it's your Chrome.
   await browser.close();
 }
