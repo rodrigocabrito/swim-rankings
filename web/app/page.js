@@ -17,8 +17,12 @@ export default async function Home() {
 
   return (
     <>
-      <h1>Rankings de Natação</h1>
-      <p className="subtitle">Top 10 por prova · Piscina longa (50m) e curta (25m) · Masculino e Feminino.</p>
+      <div className="home-hero">
+        <img src="/favicon-homepage.png" alt="Rankings de Natação" className="home-logo home-logo--light" />
+        <img src="/favicon-homepage-dark.png" alt="Rankings de Natação" className="home-logo home-logo--dark" />
+        <h1>Rankings de Natação</h1>
+        <p className="subtitle">Top 10 por prova · Piscina longa (50m) e curta (25m) · Masculino e Feminino.</p>
+      </div>
 
       {clubs.length === 0 ? (
         <p className="empty">Ainda não há dados. Corre o scraper para carregar os clubes.</p>

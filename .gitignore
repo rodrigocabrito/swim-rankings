@@ -2,6 +2,7 @@ node_modules/
 web/node_modules/
 web/.next/
 web/.env.local
+web/lib/logos-manifest.json
 artifacts/
 downloads/
 parsed/

@@ -4,6 +4,13 @@ import ThemeToggle from './ThemeToggle';
 export const metadata = {
   title: 'Rankings de Natação — Portugal',
   description: 'Top 10 por prova, por clube, piscina longa e curta.',
+  // Browser-tab icon. Add the file(s) in web/public/ (see below); until then
+  // the browser just shows its default icon — nothing breaks.
+  icons: {
+    // ?v=N busts the browser's aggressive favicon cache — bump it if you swap the image.
+    icon: [{ url: '/favicon.png?v=4', type: 'image/png' }],
+    apple: '/apple-icon.png?v=2', // optional: web/public/apple-icon.png (iOS home screen)
+  },
 };
 
 // Runs before paint: sets the theme from localStorage or system preference so
@@ -19,7 +26,7 @@ export default function RootLayout({ children }) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <header className="site-header">
           <div className="header-inner">
-            <a href="/" className="brand">🏊 Rankings de Natação</a>
+            <a href="/" className="brand">Rankings de Natação</a>
             <ThemeToggle />
           </div>
         </header>

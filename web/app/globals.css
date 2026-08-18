@@ -138,6 +138,26 @@ h1 {
 h2 { font-size: 1.1rem; margin: 28px 0 10px; }
 .subtitle { color: var(--muted); margin: 0 0 32px; font-size: 1rem; line-height: 1.5; }
 
+/* ---------- Home hero ---------- */
+.home-hero { text-align: center; margin-bottom: 28px; }
+.home-logo {
+  display: block;
+  height: 104px;
+  width: auto;
+  max-width: 100%;
+  margin: 4px auto 18px;
+}
+.home-hero h1 { margin-bottom: 8px; }
+.home-hero .subtitle { margin-bottom: 0; }
+/* Theme-swapped logo: show the light version by default, dark version in dark mode. */
+.home-logo--dark { display: none; }
+:root[data-theme='dark'] .home-logo--light { display: none; }
+:root[data-theme='dark'] .home-logo--dark { display: block; }
+
+@media (max-width: 560px) {
+  .home-logo { height: 84px; }
+}
+
 /* ---------- Search ---------- */
 .search {
   width: 100%;
@@ -170,14 +190,47 @@ h2 { font-size: 1.1rem; margin: 28px 0 10px; }
 }
 .club-card {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px 22px;
+  padding: 18px 20px;
   box-shadow: var(--shadow);
   transition: box-shadow .2s ease, transform .2s ease, border-color .2s ease;
   overflow: hidden;
 }
+.club-card-text { min-width: 0; }
+
+/* ---------- Club logos ---------- */
+.club-logo {
+  flex-shrink: 0;
+  border-radius: 10px;
+  object-fit: contain;
+}
+.club-logo--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 750;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+/* ---------- Club page header ---------- */
+.club-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.club-header h1 { margin: 0; }
+.club-header .subtitle { margin: 3px 0 0; }
 .club-card::before {
   content: '';
   position: absolute;

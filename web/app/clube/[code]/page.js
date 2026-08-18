@@ -1,6 +1,7 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { formatCity } from '../../../lib/cities';
+import ClubLogo from '../../ClubLogo';
 
 export const revalidate = 3600;
 
@@ -63,8 +64,13 @@ export default async function ClubPage({ params, searchParams }) {
   return (
     <>
       <a className="back" href="/">← Todos os clubes</a>
-      <h1>{clubName}</h1>
-      <p className="subtitle">{code}</p>
+      <div className="club-header">
+        <ClubLogo code={code} name={clubName} size={56} />
+        <div>
+          <h1>{clubName}</h1>
+          <p className="subtitle">{code}</p>
+        </div>
+      </div>
 
       <div className="filters">
         <div className="filter-group">
