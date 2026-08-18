@@ -6,6 +6,7 @@ import manifest from '../lib/logos-manifest.json';
 // Default logo for clubs without their own (Portuguese Swimming Federation).
 const DEFAULT_LOGO = '/logos/FPN.png';
 const HAS_LOGO = new Set(manifest.codes);
+const HAS_DARK = new Set(manifest.darkCodes || []); // clubs with a <CODE>-dark.png
 
 // Resolve the correct URL up front (from the build-time manifest) so the very
 // first render points at a file that exists — no 404 flash before falling back.
@@ -38,6 +39,16 @@ export default function ClubLogo({ code, name, size = 44 }) {
       <div className="club-logo club-logo--fallback" style={dim} aria-hidden="true">
         {(code || '?').slice(0, 3)}
       </div>
+    );
+  }
+
+  // If the club has a dark-mode variant, render both and let CSS swap by theme.
+  if (code && HAS_DARK.has(code) && src === `/logos/${code}.png`) {
+    return (
+      <>
+        <img className="club-logo club-logo--light" src={src} alt={`${name} logótipo`} style={dim} />
+        <img className="club-logo club-logo--dark" src={`/logos/${code}-dark.png`} alt="" style={dim} />
+      </>
     );
   }
 

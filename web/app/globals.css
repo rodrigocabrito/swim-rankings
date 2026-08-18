@@ -209,6 +209,10 @@ h2 { font-size: 1.1rem; margin: 28px 0 10px; }
   border-radius: 10px;
   object-fit: contain;
 }
+/* Per-theme club logo swap (when a <CODE>-dark.png exists). */
+.club-logo--dark { display: none; }
+:root[data-theme='dark'] .club-logo--light { display: none; }
+:root[data-theme='dark'] .club-logo--dark { display: inline-block; }
 .club-logo--fallback {
   display: inline-flex;
   align-items: center;

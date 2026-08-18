@@ -17,9 +17,14 @@ try {
 } catch {}
 
 const pngs = files.filter((f) => /\.png$/i.test(f)).map((f) => f.replace(/\.png$/i, ''));
-const codes = pngs.filter((c) => c.toUpperCase() !== 'FPN').sort();
+// `<CODE>-dark.png` = a dark-mode variant of that club's logo.
+const darkCodes = pngs
+  .filter((c) => /-dark$/i.test(c))
+  .map((c) => c.replace(/-dark$/i, ''))
+  .sort();
+const codes = pngs.filter((c) => !/-dark$/i.test(c) && c.toUpperCase() !== 'FPN').sort();
 const hasDefault = pngs.some((c) => c.toUpperCase() === 'FPN');
 
 fs.mkdirSync(path.dirname(outFile), { recursive: true });
-fs.writeFileSync(outFile, JSON.stringify({ codes, hasDefault }, null, 2) + '\n');
-console.log(`logos-manifest: ${codes.length} club logo(s), default(FPN)=${hasDefault}`);
+fs.writeFileSync(outFile, JSON.stringify({ codes, darkCodes: [...new Set(darkCodes)], hasDefault }, null, 2) + '\n');
+console.log(`logos-manifest: ${codes.length} club logo(s), ${darkCodes.length} dark variant(s), default(FPN)=${hasDefault}`);
