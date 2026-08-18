@@ -117,3 +117,9 @@ td.cell-meta { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
 
 .empty { color: var(--muted); padding: 30px 0; }
 .back { color: var(--accent); font-size: 0.9rem; }
+
+/* Error / not-found pages */
+.state-box { text-align: center; padding: 60px 20px; }
+.state-box h1 { margin-bottom: 10px; }
+.state-actions { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+.state-actions button.pill { cursor: pointer; font: inherit; }
