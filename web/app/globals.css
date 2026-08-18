@@ -315,6 +315,8 @@ h2 { font-size: 1.1rem; margin: 28px 0 10px; }
   gap: 10px;
   border-bottom: 1px solid var(--border);
 }
+.hof-overall { border-color: var(--accent); box-shadow: 0 0 0 1px var(--ring), var(--shadow); }
+.hof-overall .event-title { font-size: 1.05rem; }
 .event-title .badge {
   font-size: 0.64rem;
   text-transform: uppercase;

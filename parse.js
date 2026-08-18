@@ -15,7 +15,11 @@ const path = require('path');
 
 const DL_DIR = path.join(__dirname, 'downloads');
 const OUT_DIR = path.join(__dirname, 'parsed');
+const HOF_DIR = path.join(OUT_DIR, 'hof');
 fs.mkdirSync(OUT_DIR, { recursive: true });
+fs.mkdirSync(HOF_DIR, { recursive: true });
+
+const STROKE_ORDER = ['Liv', 'Cos', 'Bru', 'Mar', 'Est'];
 
 // Clean club display names come from the config we control, not the messy sheet title.
 const CLUB_NAMES = Object.fromEntries(
@@ -163,6 +167,67 @@ function detectNewCities(allCities) {
   fs.writeFileSync(LEDGER, JSON.stringify(merged, null, 2) + '\n');
 }
 
+// Rank a set of athlete records by place-points (desc), tie-break by avg rank.
+// Points equal -> same rank number (like the source Excel). Returns top 10.
+function rankList(records) {
+  const rows = Object.values(records)
+    .filter((r) => r.points > 0)
+    .map((r) => ({
+      name: r.name,
+      birthYear: r.birthYear ?? null,
+      points: r.points,
+      events: r.ranks.length,
+      avgRank: r.ranks.length ? Math.round((r.ranks.reduce((a, b) => a + b, 0) / r.ranks.length) * 100) / 100 : null,
+    }));
+  rows.sort(
+    (a, b) => b.points - a.points || (a.avgRank ?? 99) - (b.avgRank ?? 99) || a.name.localeCompare(b.name, 'pt')
+  );
+  const out = [];
+  rows.forEach((r, i) => {
+    const rank = i > 0 && r.points === rows[i - 1].points ? out[i - 1].rank : i + 1;
+    out.push({ rank, ...r });
+  });
+  return out.filter((r) => r.rank <= TOP_N);
+}
+
+// Build a club+gender Hall of Fame from accumulated place-points.
+// acc.byStroke[stroke][name] = { name, birthYear, points, ranks[] }.
+function buildHof(acc, generatedAt) {
+  const overall = {};
+  const strokes = {};
+  for (const stroke of STROKE_ORDER) {
+    const bs = acc.byStroke[stroke] || {};
+    strokes[stroke] = rankList(bs);
+    for (const rec of Object.values(bs)) {
+      const o = (overall[rec.name] ||= { name: rec.name, birthYear: rec.birthYear, points: 0, ranks: [] });
+      o.points += rec.points;
+      o.ranks.push(...rec.ranks);
+      if (o.birthYear == null && rec.birthYear != null) o.birthYear = rec.birthYear;
+    }
+  }
+  return {
+    club: acc.club,
+    gender: acc.gender,
+    generatedAt,
+    overall: rankList(overall),
+    strokes,
+  };
+}
+
+// Add an individual event's top-10 into the club+gender place-points accumulator.
+function accumulateHof(acc, ev) {
+  const bs = (acc.byStroke[ev.stroke] ||= {});
+  ev.swimmers.forEach((s, i) => {
+    const rank = s.rank || i + 1;
+    const pts = 11 - rank; // 1st = 10 ... 10th = 1
+    if (pts <= 0 || !s.name) return;
+    const rec = (bs[s.name] ||= { name: s.name, birthYear: s.birthYear ?? null, points: 0, ranks: [] });
+    rec.points += pts;
+    rec.ranks.push(rank);
+    if (rec.birthYear == null && s.birthYear != null) rec.birthYear = s.birthYear;
+  });
+}
+
 function main() {
   const files = fs
     .readdirSync(DL_DIR)
@@ -176,6 +241,7 @@ function main() {
   const index = { generatedAt: new Date().toISOString(), clubs: {} };
   let totalEvents = 0;
   const allCities = new Set();
+  const hof = {}; // `${code}_${gender}` -> { club, gender, byStroke }
 
   for (const fn of files) {
     const meta = parseFileName(fn);
@@ -216,6 +282,12 @@ function main() {
     fs.writeFileSync(path.join(OUT_DIR, outName), JSON.stringify(out, null, 2));
     totalEvents += events.length;
 
+    // Accumulate Hall of Fame place-points (individual events, combining LCM+SCM).
+    const hkey = `${meta.code}_${meta.gender}`;
+    const acc = (hof[hkey] ||= { club: { code: meta.code, name: clubName }, gender: meta.gender, byStroke: {} });
+    acc.club.name = clubName;
+    for (const ev of events) if (ev.type === 'individual') accumulateHof(acc, ev);
+
     // Build index.
     const ck = meta.code;
     index.clubs[ck] = index.clubs[ck] || { code: meta.code, name: clubName, files: [] };
@@ -228,6 +300,14 @@ function main() {
   fs.writeFileSync(path.join(OUT_DIR, 'index.json'), JSON.stringify(index, null, 2));
   log(`\nParsed ${files.length} files, ${Object.keys(index.clubs).length} clubs, ${totalEvents} events total.`);
   log('Output in parsed/');
+
+  // Hall of Fame: one doc per club+gender (place-points, LCM+SCM combined).
+  let hofCount = 0;
+  for (const key of Object.keys(hof)) {
+    fs.writeFileSync(path.join(HOF_DIR, `${key}.json`), JSON.stringify(buildHof(hof[key], index.generatedAt), null, 2));
+    hofCount++;
+  }
+  log(`Hall of Fame: ${hofCount} club+gender docs in parsed/hof/`);
 
   detectNewCities(allCities);
 }

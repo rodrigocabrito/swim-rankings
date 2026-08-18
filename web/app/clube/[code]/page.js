@@ -30,6 +30,51 @@ async function getDocData(id) {
   return snap.exists() ? snap.data() : null;
 }
 
+async function getHof(id) {
+  const snap = await getDoc(doc(db, 'halloffame', id));
+  return snap.exists() ? snap.data() : null;
+}
+
+// One Hall of Fame ranking table (place-points, top 10 athletes).
+function HofTable({ title, rows, highlight }) {
+  return (
+    <div className={`event${highlight ? ' hof-overall' : ''}`}>
+      <div className="event-title">
+        {highlight && <span className="badge">🏆</span>}
+        {title}
+      </div>
+      {rows && rows.length ? (
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>Atleta</th>
+                <th className="c">Ano</th>
+                <th className="c">Pts</th>
+                <th className="c">Méd.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td className="rank">{r.rank}</td>
+                  <td>{r.name}</td>
+                  <td className="c">{r.birthYear ?? ''}</td>
+                  <td className="time c">{r.points}</td>
+                  <td className="cell-meta c">{r.avgRank ?? ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="empty">Sem dados.</p>
+      )}
+    </div>
+  );
+}
+
 // ISO "2022-05-15" -> "15/05/2022" (pt format); blank if missing.
 function fmtDate(iso) {
   if (!iso) return '';
@@ -39,12 +84,14 @@ function fmtDate(iso) {
 
 export default async function ClubPage({ params, searchParams }) {
   const code = params.code;
+  const view = searchParams.view === 'hof' ? 'hof' : 'rankings';
   const course = COURSES.some((c) => c.key === searchParams.course) ? searchParams.course : 'LCM';
   const gender = GENDERS.some((g) => g.key === searchParams.gender) ? searchParams.gender : 'M';
   const stroke = STROKE_TABS.some((s) => s.key === searchParams.stroke) ? searchParams.stroke : 'Liv';
 
-  const data = await getDocData(`${code}_${course}_${gender}`);
-  const clubName = data?.club?.name || code;
+  const hofData = view === 'hof' ? await getHof(`${code}_${gender}`) : null;
+  const data = view === 'rankings' ? await getDocData(`${code}_${course}_${gender}`) : null;
+  const clubName = (view === 'hof' ? hofData?.club?.name : data?.club?.name) || code;
 
   // Estafetas tab = all relays; stroke tabs = individual events of that stroke only.
   // Split (Lap) passages stay hidden either way.
@@ -74,38 +121,71 @@ export default async function ClubPage({ params, searchParams }) {
 
       <div className="filters">
         <div className="filter-group">
-          <span className="filter-label">Piscina</span>
+          <span className="filter-label">Ver</span>
           <div className="pills">
-            {COURSES.map((c) => (
-              <a key={c.key} className={`pill ${c.key === course ? 'active' : ''}`} href={linkFor(c.key, gender, stroke)}>
-                {c.label}
-              </a>
-            ))}
+            <a className={`pill ${view === 'rankings' ? 'active' : ''}`} href={`/clube/${code}?gender=${gender}`}>
+              Rankings
+            </a>
+            <a className={`pill ${view === 'hof' ? 'active' : ''}`} href={`/clube/${code}?view=hof&gender=${gender}`}>
+              🏆 Hall of Fame
+            </a>
           </div>
         </div>
+        {view === 'rankings' && (
+          <div className="filter-group">
+            <span className="filter-label">Piscina</span>
+            <div className="pills">
+              {COURSES.map((c) => (
+                <a key={c.key} className={`pill ${c.key === course ? 'active' : ''}`} href={linkFor(c.key, gender, stroke)}>
+                  {c.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="filter-group">
           <span className="filter-label">Género</span>
           <div className="pills">
             {GENDERS.map((g) => (
-              <a key={g.key} className={`pill ${g.key === gender ? 'active' : ''}`} href={linkFor(course, g.key, stroke)}>
+              <a
+                key={g.key}
+                className={`pill ${g.key === gender ? 'active' : ''}`}
+                href={view === 'hof' ? `/clube/${code}?view=hof&gender=${g.key}` : linkFor(course, g.key, stroke)}
+              >
                 {g.label}
               </a>
             ))}
           </div>
         </div>
-        <div className="filter-group">
-          <span className="filter-label">Estilo</span>
-          <div className="pills">
-            {STROKE_TABS.map((s) => (
-              <a key={s.key} className={`pill ${s.key === stroke ? 'active' : ''}`} href={linkFor(course, gender, s.key)}>
-                {s.label}
-              </a>
-            ))}
+        {view === 'rankings' && (
+          <div className="filter-group">
+            <span className="filter-label">Estilo</span>
+            <div className="pills">
+              {STROKE_TABS.map((s) => (
+                <a key={s.key} className={`pill ${s.key === stroke ? 'active' : ''}`} href={linkFor(course, gender, s.key)}>
+                  {s.label}
+                </a>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
-      {events.length === 0 ? (
+      {view === 'hof' ? (
+        !hofData ? (
+          <p className="empty">Sem dados para esta combinação.</p>
+        ) : (
+          <>
+            <p className="subtitle">
+              Pontuação combinada (piscina longa + curta): 10 pts pelo 1.º lugar do clube em cada prova, até 1 pt pelo 10.º.
+            </p>
+            <HofTable title="Geral — Todos os Estilos" rows={hofData.overall} highlight />
+            {STROKES.map((s) => (
+              <HofTable key={s.key} title={s.label} rows={hofData.strokes?.[s.key]} />
+            ))}
+          </>
+        )
+      ) : events.length === 0 ? (
         <p className="empty">Sem dados para esta combinação.</p>
       ) : (
         events.map((ev) => (

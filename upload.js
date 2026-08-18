@@ -77,7 +77,22 @@ async function main() {
     log('  wrote meta/index');
   }
 
-  log(`✅ Done. ${files.length} ranking docs + index uploaded.`);
+  // Hall of Fame docs (one per club+gender) -> "halloffame" collection.
+  const hofDir = path.join(PARSED_DIR, 'hof');
+  let hofN = 0;
+  if (fs.existsSync(hofDir)) {
+    const hofFiles = fs.readdirSync(hofDir).filter((f) => f.endsWith('.json'));
+    const hofDocs = hofFiles.map((f) => {
+      const data = JSON.parse(fs.readFileSync(path.join(hofDir, f), 'utf8'));
+      data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
+      return { ref: db.collection('halloffame').doc(f.replace(/\.json$/, '')), data };
+    });
+    log(`Uploading ${hofDocs.length} Hall of Fame docs to "halloffame"...`);
+    await commitInChunks(hofDocs);
+    hofN = hofDocs.length;
+  }
+
+  log(`✅ Done. ${files.length} ranking docs + index + ${hofN} Hall of Fame docs uploaded.`);
   process.exit(0);
 }
 
