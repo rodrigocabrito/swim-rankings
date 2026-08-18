@@ -1,5 +1,6 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import ClubList from './ClubList';
 
 // Rebuild the page at most once an hour (data changes weekly).
 export const revalidate = 3600;
@@ -22,14 +23,7 @@ export default async function Home() {
       {clubs.length === 0 ? (
         <p className="empty">Ainda não há dados. Corre o scraper para carregar os clubes.</p>
       ) : (
-        <div className="club-grid">
-          {clubs.map((c) => (
-            <a key={c.code} className="club-card" href={`/clube/${c.code}`}>
-              <div className="code">{c.code}</div>
-              <div className="name">{c.name}</div>
-            </a>
-          ))}
-        </div>
+        <ClubList clubs={clubs} />
       )}
     </>
   );
