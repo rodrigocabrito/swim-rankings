@@ -80,7 +80,7 @@ export const CITY_COUNTRY = {
   Zagreb: 'CRO',
 };
 
-// "(ESP) Gijon" for foreign cities; plain city name for Portuguese ones.
+// "Gijon (ESP)" for foreign cities; plain city name for Portuguese ones.
 export function formatCity(city) {
   if (!city) return '';
   const code = CITY_COUNTRY[city];
