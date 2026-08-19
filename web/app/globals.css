@@ -355,10 +355,10 @@ td.rank {
   font-weight: 600;
   text-align: center;
 }
-/* Medal colors for the podium */
-tbody tr:nth-child(1) td.rank { color: var(--gold); font-weight: 800; }
-tbody tr:nth-child(2) td.rank { color: var(--silver); font-weight: 750; }
-tbody tr:nth-child(3) td.rank { color: var(--bronze); font-weight: 750; }
+/* Medal colors by rank VALUE (so tied ranks share a colour, e.g. two golds). */
+td.rank.medal-1 { color: var(--gold); font-weight: 800; }
+td.rank.medal-2 { color: var(--silver); font-weight: 750; }
+td.rank.medal-3 { color: var(--bronze); font-weight: 750; }
 
 td.time { font-variant-numeric: tabular-nums; font-weight: 650; color: var(--text); }
 /* Center a column's header and cells together so they line up under the label. */

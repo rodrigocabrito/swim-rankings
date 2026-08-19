@@ -58,7 +58,7 @@ function HofTable({ title, rows, highlight }) {
             <tbody>
               {rows.map((r, i) => (
                 <tr key={i}>
-                  <td className="rank">{r.rank}</td>
+                  <td className={`rank${medalCls(r.rank)}`}>{r.rank}</td>
                   <td>{r.name}</td>
                   <td className="c">{r.birthYear ?? ''}</td>
                   <td className="time c">{r.points}</td>
@@ -74,6 +74,9 @@ function HofTable({ title, rows, highlight }) {
     </div>
   );
 }
+
+// Medal colour class by rank value (ties share a colour: two rank-1 -> both gold).
+const medalCls = (rank) => (rank >= 1 && rank <= 3 ? ` medal-${rank}` : '');
 
 // ISO "2022-05-15" -> "15/05/2022" (pt format); blank if missing.
 function fmtDate(iso) {
@@ -211,7 +214,7 @@ export default async function ClubPage({ params, searchParams }) {
                 <tbody>
                   {ev.swimmers.map((s, i) => (
                     <tr key={i}>
-                      <td className="rank">{s.rank ?? i + 1}</td>
+                      <td className={`rank${medalCls(s.rank ?? i + 1)}`}>{s.rank ?? i + 1}</td>
                       <td>{s.name}</td>
                       {!isRelay && <td className="c">{s.birthYear ?? ''}</td>}
                       <td className="time c">{s.time}</td>
