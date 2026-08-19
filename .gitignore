@@ -10,3 +10,4 @@ parsed/
 .chrome-cdp/
 serviceAccountKey.json
 *.log
+.claude/launch.json
