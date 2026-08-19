@@ -240,6 +240,10 @@ export const CITY_COUNTRY = {
   Wachtebeke: 'BEL',
   Wien: 'AUT',
   Wingate: 'ISR',
+  // --- Added with CNA ---
+  Chartres: 'FRA',
+  Malta: 'MLT',
+  Maputo: 'MOZ',
 };
 
 // "Gijon (ESP)" for foreign cities; plain city name for Portuguese ones.
