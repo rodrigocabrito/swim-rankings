@@ -2,7 +2,7 @@
 
 A website showing the **all‑time top‑10 swimmers per event, for every swimming club in Portugal**.
 
-**Live site:** https://rankings-swim.vercel.app
+**Live site:** https://rankingswim.vercel.app
 
 ---
 
