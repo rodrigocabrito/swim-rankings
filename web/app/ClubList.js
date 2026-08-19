@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import ClubLogo from './ClubLogo';
 
 // Client-side searchable club grid. Receives the full list from the server
@@ -31,13 +32,13 @@ export default function ClubList({ clubs }) {
       ) : (
         <div className="club-grid">
           {filtered.map((c) => (
-            <a key={c.code} className="club-card" href={`/clube/${c.code}`}>
+            <Link key={c.code} className="club-card" href={`/clube/${c.code}`} prefetch={false}>
               <ClubLogo code={c.code} name={c.name} size={44} />
               <div className="club-card-text">
                 <div className="code">{c.code}</div>
                 <div className="name">{c.name}</div>
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       )}
